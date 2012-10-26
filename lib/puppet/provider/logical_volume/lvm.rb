@@ -27,11 +27,13 @@ Puppet::Type.type(:logical_volume).provide :lvm do
     end
 
     def exists?
-        lvs(@resource[:volume_group]) =~ lvs_pattern
+        vggroup ||= @resource[:volume_group] || @property_hash[:volume_group]
+        lvs(vggroup) =~ lvs_pattern
     end
 
     def size
-        if @resource[:size] =~ /^\d+\.?\d{0,2}([KMGTPE])/i
+        lvolsize ||= @property_hash[:size] || @resource[:size]
+        if lvolsize =~ /^\d+\.?\d{0,2}([KMGTPE])/i
             unit = $1.downcase
         end
 
@@ -98,14 +100,32 @@ Puppet::Type.type(:logical_volume).provide :lvm do
         end
     end
 
+    def self.lvolumes
+      lvols = []
+      volumes = lvs('--noheading').split("\n")
+      if volumes.size > 1
+        volumes.each do | lvol|
+          lvols = lvol.strip.split(/\ +/)
+        end
+      end
+      lvols
+    end
+
+    def self.instances
+      lvolumes.map { |vol | new(:name => vol[0], :volume_group => vol[1], :size => vol[3], :ensure => :present) }
+    end
+
     private
 
     def lvs_pattern
-        /\s+#{Regexp.quote @resource[:name]}\s+/
+        rname ||= @resource[:name] || @property_hash[:name]
+        /\s+#{Regexp.quote rname}\s+/
     end
 
     def path
-        "/dev/#{@resource[:volume_group]}/#{@resource[:name]}"
+        rname ||= @resource[:name] || @property_hash[:name]
+        vg ||= @resource[:volume_group] ||  @property_hash[:volume_group]
+        "/dev/#{vg}/#{rname}"
     end
 
 end

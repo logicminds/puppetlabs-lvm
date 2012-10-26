@@ -42,6 +42,28 @@ Puppet::Type.type(:volume_group).provide :lvm do
         end
     end
 
+    def self.pvols
+      vols = {}
+      lines = pvs().split("\n")
+      if lines.size > 1
+        lines.shift
+        lines.each do | pvol|
+          vol = pvol.strip.split(/\ +/)
+          vols[vol[1]] = [] if not vols.has_key?(vol[1])
+          vols[vol[1]] += [vol[0]]
+        end
+      end
+      return vols
+    end
+    
+    def self.instances
+      vgs = []
+      pvols.each do |name,vols|
+        vgs << new(:name => name, :physical_volumes => vols )
+      end
+      return vgs
+    end
+
     private
 
     def reduce_with(volume)
